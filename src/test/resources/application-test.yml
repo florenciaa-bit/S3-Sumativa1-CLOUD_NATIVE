@@ -1,0 +1,16 @@
+app:
+  efs:
+    ruta: ${java.io.tmpdir}/tickets-test-efs
+  s3:
+    bucket: bucket-de-prueba
+    region: us-east-1
+    subida-automatica: true
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop

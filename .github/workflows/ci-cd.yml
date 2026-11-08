@@ -1,0 +1,75 @@
+name: CI/CD tickets-service
+
+# Se ejecuta con cada push a main (y a mano desde la pestana Actions)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  pruebas:
+    name: 1. Compilar y probar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Ejecutar pruebas
+        run: mvn -B test
+
+  docker:
+    name: 2. Construir y publicar imagen en Docker Hub
+    needs: pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/tickets-service:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/tickets-service:${{ github.sha }}
+
+  despliegue:
+    name: 3. Desplegar en EC2
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Actualizar contenedor en la EC2 por SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            IMAGEN=${{ secrets.DOCKERHUB_USERNAME }}/tickets-service:latest
+            docker pull $IMAGEN
+            docker rm -f tickets-service || true
+            docker run -d --name tickets-service --restart unless-stopped \
+              -p 8080:8080 \
+              --env-file /home/ec2-user/tickets.env \
+              -v /mnt/efs/tickets:/mnt/efs/tickets \
+              -v /home/ec2-user/wallet:/app/wallet:ro \
+              $IMAGEN
+            docker image prune -f
+            echo "Esperando a que la aplicacion responda..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8080/actuator/health > /dev/null; then
+                echo "Aplicacion desplegada y saludable"
+                curl -s http://localhost:8080/actuator/health
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "La aplicacion no respondio a tiempo. Ultimos logs:"
+            docker logs --tail 80 tickets-service
+            exit 1

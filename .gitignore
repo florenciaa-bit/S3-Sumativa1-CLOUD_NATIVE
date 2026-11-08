@@ -1,0 +1,17 @@
+# Compilacion
+target/
+data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# SECRETOS: nunca subir al repositorio (es publico)
+wallet/
+Wallet_*/
+*.zip
+*.pem
+*.env
+!deploy/tickets.env.example
+credentials

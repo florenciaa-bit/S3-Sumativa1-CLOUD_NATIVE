@@ -1,0 +1,11 @@
+# Perfil para probar en tu PC sin Oracle: SPRING_PROFILES_ACTIVE=local
+# Usa una base H2 en archivo y una carpeta local en lugar del EFS.
+app:
+  efs:
+    ruta: ${EFS_PATH:./data/efs/tickets}
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/tickets-db
+    username: sa
+    password: ""

@@ -1,0 +1,13 @@
+target/
+data/
+wallet/
+Wallet_*/
+*.zip
+*.pem
+*.env
+.git/
+.github/
+.idea/
+.vscode/
+postman/
+docs/
